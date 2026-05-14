@@ -293,15 +293,21 @@ if film_1 is not None:
 
 st.divider()
 
-#3 Naloga
-def naredi_datoteke():
+
+# 3 Naloga
+#Uvedel sem funkciji za nalaganje, ki preprečita sesutje, če datoteki še ne obstajata ali sta prazni.
+def nalozi_uporabnike():
     if not os.path.exists("uporabniki.csv"):
         pd.DataFrame(columns=["uporabnik", "geslo"]).to_csv("uporabniki.csv", index=False)
+        return pd.DataFrame(columns=["uporabnik", "geslo"])
+    return pd.read_csv("uporabniki.csv")
 
+
+def nalozi_ocene_uporabnika():
     if not os.path.exists("ocene_uporabnika.csv"):
         pd.DataFrame(columns=["uporabnik", "film", "ocena"]).to_csv("ocene_uporabnika.csv", index=False)
-
-naredi_datoteke()
+        return pd.DataFrame(columns=["uporabnik", "film", "ocena"])
+    return pd.read_csv("ocene_uporabnika.csv")
 
 
 if "prijavljen" not in st.session_state:
@@ -311,7 +317,7 @@ st.sidebar.title("Prijava")
 
 if not st.session_state["prijavljen"]:
     izbira = st.sidebar.selectbox("Izberi:", ["Prijava", "Registracija"])
-    uporabniki = pd.read_csv("uporabniki.csv")
+    uporabniki = nalozi_uporabnike()
 
     # Uporabimo formo v sidebar-u, da se stran ne osvežuje med tipkanjem imena in gesla
     with st.sidebar.form("forma_prijava"):
@@ -333,14 +339,14 @@ if not st.session_state["prijavljen"]:
                 st.sidebar.success("Uspešno ustvarjen uporabnik! Zdaj preklopi na prijavo.")
 
         elif izbira == "Prijava":
-            uspeh = ((uporabniki["uporabnik"].astype(str) == reg_ime) & 
+            uspeh = ((uporabniki["uporabnik"].astype(str) == reg_ime) &
                      (uporabniki["geslo"].astype(str) == reg_geslo)).any()
-            
+
             if uspeh:
                 st.session_state["prijavljen"] = True
                 st.session_state["trenutni_u"] = reg_ime
                 st.rerun()
-                
+
             else:
                 st.sidebar.error("Napačno ime ali geslo")
 
@@ -354,48 +360,49 @@ else:
 st.markdown("<h3 style='font-weight: bold;'>Naloga 3 (Priporočilni sistem)</h3>", unsafe_allow_html=True)
 
 if st.session_state["prijavljen"]:
-    vse_ocene_iz_datoteke = pd.read_csv("ocene_uporabnika.csv")
+    vse_ocene_iz_datoteke = nalozi_ocene_uporabnika()
 
-    #DODAJANJE OCENE
+    # DODAJANJE OCENE
     # Uporabimo formo tudi tukaj, da ne "laga" celotna stran ob vsaki izbiri v selectboxu
     with st.form("forma_dodaj_oceno"):
         col1, col2 = st.columns([2, 1])
 
         with col1:
-            film = st.selectbox("Kateri film bi ocenil", options=seznam_filmov, index=None)
+            izbran_film = st.selectbox("Kateri film bi ocenil", options=seznam_filmov, index=None)
 
         with col2:
-            izbrana_ocena = st.select_slider("Izberi svojo oceno", options=[0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0], value=3.0)
-        
+            izbrana_ocena = st.select_slider("Izberi svojo oceno",
+                                             options=[0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0], value=3.0)
+
         oddaj_oceno_gumb = st.form_submit_button("Oddaj oceno", use_container_width=True)
-    
+
     prijavljen_uporabnik = st.session_state.get('trenutni_u', 'Uporabnik')
-    ocene_uporabnika = pd.read_csv("ocene_uporabnika.csv")
-    ocene_uporabnika = ocene_uporabnika[ocene_uporabnika["uporabnik"] == prijavljen_uporabnik]
+    ocene_uporabnika = vse_ocene_iz_datoteke[vse_ocene_iz_datoteke["uporabnik"] == prijavljen_uporabnik]
     ze_ocenjeni_filmi = ocene_uporabnika["film"].to_list()
 
     if oddaj_oceno_gumb:
-        if film == None:
+        if izbran_film == None:
             st.error("Prosim izberi film")
 
         else:
-            if film in ze_ocenjeni_filmi:
+            if izbran_film in ze_ocenjeni_filmi:
                 st.error("Ta film ste ze ocenili prosim izberite drugega")
 
             else:
-                nova_ocena = pd.DataFrame([[prijavljen_uporabnik, film, izbrana_ocena]], columns=["uporabnik", "film", "ocena"])
+                nova_ocena = pd.DataFrame([[prijavljen_uporabnik, izbran_film, izbrana_ocena]],
+                                          columns=["uporabnik", "film", "ocena"])
                 nova_ocena.to_csv("ocene_uporabnika.csv", mode='a', header=False, index=False)
                 st.success("Uspešno ocenjen film.")
                 st.rerun()
 
     st.write("")
     st.write("")
-    
-    #BRISANJE OCENE
+
+    # BRISANJE OCENE
     col3, col4 = st.columns([2, 1])
     with col3:
         brisi_film = st.selectbox("Izberi film za izbris", options=ze_ocenjeni_filmi, index=None, key="select_brisi")
-    
+
     with col4:
         st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
         gumb_brisi = st.button("Briši oceno", type="primary", use_container_width=True)
@@ -403,14 +410,15 @@ if st.session_state["prijavljen"]:
     if gumb_brisi:
         if brisi_film is None:
             st.warning("Izberi film, ki ga želiš odstraniti.")
-        
+
         else:
             # LOGIKA BRISANJA --> Obdržimo vse vrstice, razen tiste, ki ustreza uporabniku IN izbranemu filmu
-            nova_tabela = vse_ocene_iz_datoteke[~((vse_ocene_iz_datoteke["uporabnik"] == prijavljen_uporabnik) & (vse_ocene_iz_datoteke["film"] == brisi_film))]
+            nova_tabela = vse_ocene_iz_datoteke[~((vse_ocene_iz_datoteke["uporabnik"] == prijavljen_uporabnik) & (
+                        vse_ocene_iz_datoteke["film"] == brisi_film))]
             nova_tabela.to_csv("ocene_uporabnika.csv", index=False)
             st.success(f"Ocena za {brisi_film} izbrisana.")
             st.rerun()
-  
+
     st.write("")
     st.write("")
 
@@ -424,16 +432,18 @@ if st.session_state["prijavljen"]:
     st.write("")
 
     st.markdown("<h4 style='font-weight: bold;'>Filmi ki vam bi mora bili všeč</h4>", unsafe_allow_html=True)
-    #st.write(len(ocene_uporabnika))
+
     if len(ocene_uporabnika) < 10:
-        st.markdown("Če želiš pridobiti priporočila za naslednje filme, <span style='color: red; font-size: 20px; font-weight: bold;'>moraš oceniti vsaj 10 filmov!</span>", unsafe_allow_html=True)
-    
+        st.markdown(
+            "Če želiš pridobiti priporočila za naslednje filme, <span style='color: red; font-size: 20px; font-weight: bold;'>moraš oceniti vsaj 10 filmov!</span>",
+            unsafe_allow_html=True)
+
     else:
         # Dodamo gumb za dejanski izračun, da ne obremenjujemo strani ob vsakem premiku miške
         if st.button("Generiraj priporočila"):
             matrika_osnova = pripravi_matriko(ratings, movies)
             matrika = matrika_osnova.copy()
-            
+
             model = Lasso(alpha=0.05)
             matrika["Moje_ocene"] = 0.0
 
@@ -441,10 +451,12 @@ if st.session_state["prijavljen"]:
                 film_naslov = vrsta['film']
                 if film_naslov in matrika.index:
                     matrika.at[film_naslov, "Moje_ocene"] = vrsta['ocena']
-            
-            y_train = matrika["Moje_ocene"][matrika["Moje_ocene"] > 0] #Filmi ki sem jih ocenil
-            x_train = matrika.drop(columns=["Moje_ocene"]).loc[y_train.index] #Ocene drugih uporabnikov za filme, ki si jih ti ocenil
-            x_neocenjeni = matrika.drop(columns=["Moje_ocene"]).loc[matrika["Moje_ocene"] == 0] #Filmi ki jih nisem ocenil
+
+            y_train = matrika["Moje_ocene"][matrika["Moje_ocene"] > 0]  # Filmi ki sem jih ocenil
+            x_train = matrika.drop(columns=["Moje_ocene"]).loc[
+                y_train.index]  # Ocene drugih uporabnikov za filme, ki si jih ti ocenil
+            x_neocenjeni = matrika.drop(columns=["Moje_ocene"]).loc[
+                matrika["Moje_ocene"] == 0]  # Filmi ki jih nisem ocenil
 
             model.fit(x_train, y_train)
             napoved = model.predict(x_neocenjeni)
@@ -453,6 +465,8 @@ if st.session_state["prijavljen"]:
             priporocila = priporocila.sort_values(by='Predvidena ocena', ascending=False).head(10)
 
             st.table(priporocila)
-        
+
 else:
-    st.markdown("Če želiš oceniti filme, se moraš <span style='color: red; font-size: 20px; font-weight: bold;'>prijaviti!</span>", unsafe_allow_html=True)
+    st.markdown(
+        "Če želiš oceniti filme, se moraš <span style='color: red; font-size: 20px; font-weight: bold;'>prijaviti!</span>",
+        unsafe_allow_html=True)
