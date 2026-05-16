@@ -8,8 +8,11 @@ from sklearn.linear_model import Lasso
 
 @st.cache_data
 def nalozi_podatke():
-    r = pd.read_csv("data/ratings.csv")
-    m = pd.read_csv("data/movies.csv")
+    POT_MOVIES = "https://raw.githubusercontent.com/Prism-Break-byte/PR_Domaca_4_Mark_-incek/main/data/movies.csv"
+    POT_RATINGS = "https://raw.githubusercontent.com/Prism-Break-byte/PR_Domaca_4_Mark_-incek/main/data/ratings.csv"
+
+    r = pd.read_csv(POT_RATINGS)
+    m = pd.read_csv(POT_MOVIES)
     return r, m
 
 
